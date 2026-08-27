@@ -1,0 +1,153 @@
+name: Release builds
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version embedded in the binaries
+        required: true
+        default: "0.0.0-dev"
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="${{ inputs.version }}"
+          fi
+          if [[ -z "$version" ]]; then
+            echo "Version must not be empty" >&2
+            exit 1
+          fi
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Version must use semantic versioning, for example 1.2.3 or 1.2.3-rc.1" >&2
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: metadata
+    uses: ./.github/workflows/verify.yml
+
+  build:
+    needs:
+      - metadata
+      - verify
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-amd64
+            goos: linux
+            goarch: amd64
+            goarm: ""
+            output: vicuna-linux-amd64
+          - name: linux-arm64
+            goos: linux
+            goarch: arm64
+            goarm: ""
+            output: vicuna-linux-arm64
+          - name: linux-armv7
+            goos: linux
+            goarch: arm
+            goarm: "7"
+            output: vicuna-linux-armv7
+          - name: windows-amd64
+            goos: windows
+            goarch: amd64
+            goarm: ""
+            output: vicuna-windows-amd64.exe
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify Go modules
+        run: go mod verify
+
+      - name: Build ${{ matrix.name }}
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+          OUTPUT: ${{ matrix.output }}
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 go build \
+            -trimpath \
+            -buildvcs=false \
+            -ldflags="-s -w -X main.version=$VERSION" \
+            -o "dist/$OUTPUT" \
+            .
+
+      - name: Upload ${{ matrix.name }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.name }}
+          path: dist/${{ matrix.output }}
+          if-no-files-found: error
+
+  bundle:
+    needs:
+      - metadata
+      - verify
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release metadata
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download platform builds
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Add licence notices
+        shell: bash
+        run: |
+          cp LICENSE dist/LICENSE
+          cp web/third-party-notices.txt dist/THIRD_PARTY_NOTICES.txt
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum LICENSE THIRD_PARTY_NOTICES.txt vicuna-* | sort -k2 > SHA256SUMS.txt
+
+      - name: Upload combined bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vicuna-${{ needs.metadata.outputs.version }}
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --generate-notes --verify-tag

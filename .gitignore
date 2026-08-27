@@ -1,0 +1,6 @@
+/vicuna
+/vicuna.exe
+/vicuna.json
+/dist/
+*.test
+coverage.out

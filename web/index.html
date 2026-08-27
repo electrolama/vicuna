@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Vicuña is an extensible browser-based serial monitor and terminal.">
+  <title>❌ Vicuña — Disconnected</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="control-panel">
+      <a class="brand" href="/" aria-label="Vicuña home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span><strong>Vicuña</strong></span>
+      </a>
+
+      <div class="hardware-controls">
+        <label class="field hardware-field" title="Hardware profile">
+          <span class="sr-only">Hardware profile</span>
+          <select id="hardwareSelect" aria-label="Hardware profile">
+            <option value="generic-rs232">Generic RS232</option>
+          </select>
+        </label>
+        <div id="hardwarePanel" class="hardware-panel" aria-label="Hardware controls"></div>
+      </div>
+
+      <div class="connection-controls">
+        <label class="field port-field">
+          <span class="sr-only">Serial port</span>
+          <select id="portSelect" aria-label="Serial port">
+            <option value="">Scanning for ports…</option>
+          </select>
+        </label>
+        <button id="refreshPorts" class="icon-button" title="Refresh serial ports" aria-label="Refresh serial ports">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
+        </button>
+        <label class="field baud-field">
+          <span class="sr-only">Baud rate</span>
+          <select id="baudSelect" aria-label="Baud rate">
+            <option value="300">300</option><option value="1200">1,200</option><option value="2400">2,400</option>
+            <option value="4800">4,800</option><option value="9600">9,600</option><option value="19200">19,200</option>
+            <option value="38400">38,400</option><option value="57600">57,600</option><option value="115200" selected>115,200</option>
+            <option value="230400">230,400</option><option value="460800">460,800</option><option value="921600">921,600</option>
+            <option value="1000000">1,000,000</option><option value="2000000">2,000,000</option><option value="3000000">3,000,000</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <span class="field-unit">baud</span>
+        </label>
+        <label id="customBaudField" class="field custom-baud-field" hidden>
+          <span class="sr-only">Custom baud rate</span>
+          <input id="customBaudInput" type="number" min="50" max="12000000" value="115200" aria-label="Custom baud rate">
+        </label>
+        <button id="serialSettingsButton" class="icon-button" title="Serial framing" aria-label="Serial framing" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+        </button>
+        <button id="connectButton" class="connect-button" disabled>
+          <span class="status-dot"></span><span class="connect-label">Connect</span>
+        </button>
+      </div>
+
+      <div class="header-status">
+        <span id="streamStatus" class="stream-status" title="Browser event stream"><i></i> UI link</span>
+      </div>
+    </header>
+
+    <div id="serialPopover" class="popover serial-popover" hidden>
+      <div class="popover-title">Serial framing</div>
+      <div class="settings-grid">
+        <label>Data bits<select id="dataBits"><option>8</option><option>7</option><option>6</option><option>5</option></select></label>
+        <label>Parity<select id="parity"><option value="none">None</option><option value="even">Even</option><option value="odd">Odd</option><option value="mark">Mark</option><option value="space">Space</option></select></label>
+        <label>Stop bits<select id="stopBits"><option value="1">1</option><option value="1.5">1.5</option><option value="2">2</option></select></label>
+      </div>
+      <p class="settings-summary" id="framingSummary">8 data bits · no parity · 1 stop bit</p>
+    </div>
+
+    <nav class="workspace-bar" aria-label="Console views">
+      <div class="view-tabs" role="tablist">
+        <button class="view-tab active" data-view="terminal" role="tab" aria-selected="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 7 4 4-4 4M11 17h7"/></svg>Terminal
+        </button>
+        <button class="view-tab" data-view="monitor" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h13"/></svg>Monitor
+        </button>
+        <button class="view-tab" data-view="hex" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4 4 20M16 4l-4 16M3 9h18M2 15h18"/></svg>Hex
+        </button>
+      </div>
+
+      <div class="view-options">
+        <label class="toggle compact-option" title="Show timestamps in Monitor and Hex views">
+          <input id="timestampsToggle" type="checkbox" checked><span></span>Timestamps
+        </label>
+        <label class="toggle compact-option" title="Render ANSI colours in Terminal and Monitor views">
+          <input id="ansiToggle" type="checkbox" checked><span></span>ANSI colour
+        </label>
+        <label class="toggle compact-option" title="Follow new output">
+          <input id="autoscrollToggle" type="checkbox" checked><span></span>Autoscroll
+        </label>
+        <button id="themeButton" class="text-button theme-button" title="Switch to light theme" aria-label="Switch to light theme">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg><span>Dark</span>
+        </button>
+        <div class="toolbar-divider"></div>
+        <button id="clearButton" class="text-button" title="Clear all views">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg>Clear
+        </button>
+        <button id="exportButton" class="icon-button small" title="Export active view" aria-label="Export active view">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
+        </button>
+        <button id="moreButton" class="icon-button small" title="Line controls" aria-label="Line controls" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <div id="linePopover" class="popover line-popover" hidden>
+      <div class="popover-title">Session controls</div>
+      <div class="line-control-row">
+        <button id="breakButton" class="signal-button">Send break</button>
+      </div>
+      <label class="toggle popover-toggle"><input id="localEchoToggle" type="checkbox"><span></span>Local echo in Terminal</label>
+      <button id="resetBuffersButton" class="reset-button">Reset serial buffers</button>
+    </div>
+
+    <main class="workspace">
+      <section id="terminalView" class="console-view active" role="tabpanel">
+        <div id="terminal" class="terminal" tabindex="0" aria-label="Interactive serial terminal">
+          <div class="terminal-screen"></div><span class="terminal-cursor" aria-hidden="true"></span>
+        </div>
+        <div class="empty-state" id="terminalEmpty">
+          <div class="empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 7 4 4-4 4M11 17h7"/></svg></div>
+          <strong>Ready for a serial session</strong>
+          <span>Choose a port and connect, then click here to type directly.</span>
+        </div>
+      </section>
+
+      <section id="monitorView" class="console-view" role="tabpanel" hidden>
+        <div class="monitor-heading"><span class="timestamp-column">Time</span><span class="direction-column">Dir</span><span>Decoded text</span></div>
+        <div id="monitorOutput" class="monitor-output"></div>
+      </section>
+
+      <section id="hexView" class="console-view" role="tabpanel" hidden>
+        <div class="hex-heading"><span class="timestamp-column">Time</span><span class="direction-column">Dir</span><span class="offset-column">Offset</span><span class="bytes-column">00 01 02 03 04 05 06 07&nbsp; 08 09 0A 0B 0C 0D 0E 0F</span><span>ASCII</span></div>
+        <div id="hexOutput" class="hex-output"></div>
+      </section>
+    </main>
+
+    <footer class="send-panel">
+      <div class="mode-segment" aria-label="Send encoding">
+        <button class="send-mode active" data-mode="text">Text</button><button class="send-mode" data-mode="hex">Hex</button>
+      </div>
+      <label class="send-input-wrap">
+        <span class="sr-only">Data to send</span>
+        <textarea id="sendInput" rows="1" placeholder="Type a command…" spellcheck="false" disabled></textarea>
+      </label>
+      <label class="ending-field" title="Line ending appended to text sends">
+        <span>Ending</span>
+        <select id="lineEnding"><option value="crlf">CRLF</option><option value="lf">LF</option><option value="cr">CR</option><option value="none">None</option></select>
+      </label>
+      <button id="sendButton" class="send-button" disabled>Send <kbd>Enter</kbd></button>
+    </footer>
+
+    <div id="toastRegion" class="toast-region" aria-live="polite"></div>
+  </div>
+  <script src="app.js" defer></script>
+</body>
+</html>

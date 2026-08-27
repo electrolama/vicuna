@@ -1,0 +1,15 @@
+{
+  "mode": "linux",
+  "theme": "dark",
+  "hardware": "generic-rs232",
+  "password": "",
+  "serial": {
+    "port": "/dev/ttyUSB0",
+    "baud": 115200,
+    "dataBits": 8,
+    "parity": "none",
+    "stopBits": "1",
+    "dtr": true,
+    "rts": true
+  }
+}

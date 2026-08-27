@@ -1,0 +1,27 @@
+[Unit]
+Description=Vicuna extensible serial monitor and terminal
+After=network.target
+
+[Service]
+Type=simple
+User=vicuna
+Group=vicuna
+SupplementaryGroups=dialout
+WorkingDirectory=/etc/vicuna
+ExecStart=/usr/local/bin/vicuna -config /etc/vicuna/vicuna.json
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
