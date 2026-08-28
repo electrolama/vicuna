@@ -77,7 +77,7 @@ The included `pt1` adapter demonstrates the smallest useful device-specific modu
 
 | Device control | Modem signal | Behaviour |
 | --- | --- | --- |
-| VBUS | DTR output | Toggles the target USB power-switch enable. |
+| VBUS | DTR output | Toggles the target USB power-switch enable; the PT1 enable is active-low. |
 | Overcurrent | RI input | Displays the power-switch fault state. |
 
 The service implementation is isolated in `hardware_pt1.go`. The matching `PT1Module` in `web/app.js` changes the labels to `ON`/`OFF` and `FAULT`/`CLEAR`, keeps VBUS off by default when first selected, and otherwise uses the same module APIs as any future device adapter.

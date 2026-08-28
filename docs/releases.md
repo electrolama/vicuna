@@ -71,7 +71,7 @@ After downloading a release, verify it against `SHA256SUMS.txt`:
 
 ```sh
 sha256sum -c SHA256SUMS.txt
-./vicuna-0.3.0-linux-arm64 -version
+./vicuna-0.4.0-linux-arm64 -version
 ```
 
 On macOS, use `shasum -a 256`; on Windows, use `Get-FileHash -Algorithm SHA256`. Compare the result with the published checksum file.

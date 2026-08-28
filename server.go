@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -46,6 +47,7 @@ func (s *apiServer) routes() http.Handler {
 	mux.HandleFunc("GET /api/ports", s.handlePorts)
 	mux.HandleFunc("GET /api/status", s.handleStatus)
 	mux.HandleFunc("GET /api/config", s.handleConfig)
+	mux.HandleFunc("GET /api/about", s.handleAbout)
 	mux.HandleFunc("GET /api/signals", s.handleSignals)
 	mux.HandleFunc("GET /api/hardware", s.handleHardware)
 	mux.HandleFunc("GET /api/events", s.handleEvents)
@@ -77,6 +79,13 @@ func (s *apiServer) handleStatus(w http.ResponseWriter, _ *http.Request) {
 
 func (s *apiServer) handleConfig(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, s.config)
+}
+
+func (s *apiServer) handleAbout(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{
+		"version": version,
+		"build":   runtime.GOOS + "/" + runtime.GOARCH + " · " + runtime.Version(),
+	})
 }
 
 func (s *apiServer) handleSignals(w http.ResponseWriter, _ *http.Request) {
@@ -273,7 +282,10 @@ func pointerTo[T any](value T) *T { return &value }
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'self'")
+		// xterm.js' DOM renderer creates stylesheet elements for its monospace
+		// metrics and ANSI palette. Keep inline scripts blocked, but allow those
+		// runtime styles and the renderer's per-cell style attributes.
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self'; style-src-elem 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'self'")
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 		w.Header().Set("Permissions-Policy", "camera=(), geolocation=(), microphone=()")

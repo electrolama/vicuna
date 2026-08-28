@@ -20,6 +20,7 @@
     sendBreak: $("#breakButton"), localEcho: $("#localEchoToggle"), resetBuffers: $("#resetBuffersButton"),
     terminal: $("#terminal"), terminalEmpty: $("#terminalEmpty"), terminalSize: $("#terminalSize"),
     terminalSizeCommand: $("#terminalSizeCommand"), copyTerminalSize: $("#copyTerminalSize"),
+    appVersion: $("#appVersion"), appBuild: $("#appBuild"),
     monitor: $("#monitorOutput"), hex: $("#hexOutput"), workspace: $(".workspace"),
     sendInput: $("#sendInput"), lineEnding: $("#lineEnding"), send: $("#sendButton"),
     toast: $("#toastRegion")
@@ -212,18 +213,18 @@
   // pt1 is a worked example of assigning device-specific meaning to those lines.
   class PT1Module extends HardwareModule {
     constructor() { super("pt1", "pt1"); }
-    connectionSignals() { return { dtr: Boolean(settings.pt1Vbus), rts: false }; }
+    connectionSignals() { return { dtr: !Boolean(settings.pt1Vbus), rts: false }; }
     render() {
-      const vbus = connected ? signals.dtr : Boolean(settings.pt1Vbus);
+      const vbus = connected ? !signals.dtr : Boolean(settings.pt1Vbus);
       elements.hardwarePanel.innerHTML = this.toggle("vbus", "VBUS", vbus, "ON", "OFF") + this.indicator("ri", "Overcurrent", true, "FAULT", "CLEAR");
     }
     async toggleControl(control) {
       if (control !== "vbus") return;
-      const current = connected ? Boolean(signals.dtr) : Boolean(settings.pt1Vbus);
+      const current = connected ? !signals.dtr : Boolean(settings.pt1Vbus);
       const value = !current;
       if (connected) await this.setControl(control, value);
       settings.pt1Vbus = value;
-      if (connected) signals.dtr = value;
+      if (connected) signals.dtr = !value;
     }
   }
 
@@ -288,7 +289,7 @@
       stopBits: serial.stopBits,
       dtr: Boolean(serial.dtr),
       rts: Boolean(serial.rts),
-      pt1Vbus: config.hardware === "pt1" ? Boolean(serial.dtr) : false
+      pt1Vbus: config.hardware === "pt1" ? !Boolean(serial.dtr) : false
     };
     if (config.mode === "embedded") {
       settings.view = "monitor";
@@ -378,6 +379,13 @@
       elements.connect.disabled = connected ? false : !elements.port.value;
     } catch (error) { toast(error.message, true); }
     finally { elements.refresh.disabled = connected; }
+  }
+
+  async function loadBuildInformation() {
+    const information = await api("/api/about");
+    elements.appVersion.textContent = information.version;
+    elements.appBuild.textContent = information.build;
+    elements.appBuild.title = information.build;
   }
 
   async function toggleConnection() {
@@ -704,6 +712,7 @@
     activeView = settings.view || "terminal";
     applySavedSettings(); bindEvents(); terminal.resize(); renderMonitor(); renderHex(); connectEventStream();
     try { await loadHardwareModules(); } catch (error) { toast(`Hardware definitions unavailable: ${error.message}`, true); }
+    try { await loadBuildInformation(); } catch (error) { toast(`Build information unavailable: ${error.message}`, true); }
     const portsReady = refreshPorts();
     try { applyStatus(await api("/api/status")); applySignals(await api("/api/signals")); } catch (error) { toast(error.message, true); }
     await portsReady;

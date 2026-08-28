@@ -81,7 +81,13 @@ func TestPT1ExampleDefinitionAndVBUSMapping(t *testing.T) {
 	if err := module.Set(manager, "vbus", true); err != nil {
 		t.Fatal(err)
 	}
+	if manager.dtr == nil || *manager.dtr || manager.rts != nil {
+		t.Fatalf("pt1 VBUS on should deassert DTR only: dtr=%v rts=%v", manager.dtr, manager.rts)
+	}
+	if err := module.Set(manager, "vbus", false); err != nil {
+		t.Fatal(err)
+	}
 	if manager.dtr == nil || !*manager.dtr || manager.rts != nil {
-		t.Fatalf("pt1 VBUS should set DTR only: dtr=%v rts=%v", manager.dtr, manager.rts)
+		t.Fatalf("pt1 VBUS off should assert DTR only: dtr=%v rts=%v", manager.dtr, manager.rts)
 	}
 }

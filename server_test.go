@@ -130,8 +130,17 @@ func TestSecurityHeadersAndCachePolicy(t *testing.T) {
 			t.Errorf("%s = %q, want %q", name, got, expected)
 		}
 	}
-	if policy := apiRecorder.Header().Get("Content-Security-Policy"); !strings.Contains(policy, "frame-ancestors 'none'") || !strings.Contains(policy, "object-src 'none'") {
-		t.Errorf("content security policy is incomplete: %q", policy)
+	policy := apiRecorder.Header().Get("Content-Security-Policy")
+	for _, directive := range []string{
+		"frame-ancestors 'none'",
+		"object-src 'none'",
+		"script-src 'self'",
+		"style-src-elem 'self' 'unsafe-inline'",
+		"style-src-attr 'unsafe-inline'",
+	} {
+		if !strings.Contains(policy, directive) {
+			t.Errorf("content security policy is missing %q: %q", directive, policy)
+		}
 	}
 
 	pageRequest := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -180,6 +189,25 @@ func TestConfigEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !response.Configured || response.Mode != "embedded" || response.Theme != "light" || response.Hardware != "generic-rs232" || response.Serial.Port != "COM9" {
+		t.Fatalf("unexpected response: %+v", response)
+	}
+}
+
+func TestAboutEndpoint(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/api/about", nil)
+	recorder := httptest.NewRecorder()
+	testHandler(t, &fakeManager{}).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Version string `json:"version"`
+		Build   string `json:"build"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Version != version || !strings.Contains(response.Build, "/") || !strings.Contains(response.Build, "go") {
 		t.Fatalf("unexpected response: %+v", response)
 	}
 }

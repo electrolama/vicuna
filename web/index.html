@@ -11,26 +11,6 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="control-panel">
-      <a class="brand" href="/" aria-label="Vicuña home">
-        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span><strong>Vicuña</strong></span>
-      </a>
-
-      <div class="connection-controls">
-        <span class="header-port-label">COM Port</span>
-        <label class="field port-field">
-          <span class="sr-only">Serial port</span>
-          <select id="portSelect" aria-label="Serial port">
-            <option value="">Scanning for ports…</option>
-          </select>
-        </label>
-        <button id="refreshPorts" class="icon-button" title="Refresh serial ports" aria-label="Refresh serial ports">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
-        </button>
-      </div>
-    </header>
-
     <div id="serialPopover" class="popover serial-popover" hidden>
       <div class="popover-title">Serial framing</div>
       <div class="settings-grid">
@@ -128,6 +108,18 @@
     <aside class="right-panel" aria-label="Connection and hardware settings">
       <section class="side-section">
         <div class="side-section-heading"><span>Connection</span><span id="streamStatus" class="stream-status" title="Browser event stream"><i></i> UI link</span></div>
+        <label class="side-field-label" for="portSelect">COM port</label>
+        <div class="side-field-row">
+          <label class="field port-field">
+            <span class="sr-only">Serial port</span>
+            <select id="portSelect" aria-label="Serial port">
+              <option value="">Scanning for ports…</option>
+            </select>
+          </label>
+          <button id="refreshPorts" class="icon-button" title="Refresh serial ports" aria-label="Refresh serial ports">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
+          </button>
+        </div>
         <label class="side-field-label" for="baudSelect">Baud rate</label>
         <label class="field baud-field">
           <select id="baudSelect" aria-label="Baud rate">
@@ -167,8 +159,19 @@
 
       <section class="side-section terminal-geometry-section">
         <div class="side-section-heading"><span>Terminal geometry</span><strong id="terminalSize">80 × 24</strong></div>
-        <p class="side-description">A raw UART cannot deliver a resize signal to Linux. At the Raspberry Pi shell, run <code>resize</code> or use:</p>
+        <p class="side-description">A raw UART cannot deliver a resize signal to Linux. At the Linux shell, run <code>resize</code> or use:</p>
         <button id="copyTerminalSize" class="geometry-command" title="Copy command to clipboard"><code id="terminalSizeCommand">stty rows 24 cols 80</code><span>Copy</span></button>
+      </section>
+
+      <section class="side-section vicuna-section" aria-label="About Vicuña">
+        <div class="vicuna-identity">
+          <span class="brand-mark" aria-hidden="true"><b>$_</b></span>
+          <span><strong>Vicuña</strong><small>Serial monitor &amp; terminal</small></span>
+        </div>
+        <dl class="build-details">
+          <div><dt>Version</dt><dd id="appVersion">—</dd></div>
+          <div><dt>Build</dt><dd id="appBuild">—</dd></div>
+        </dl>
       </section>
     </aside>
 
