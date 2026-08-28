@@ -369,13 +369,10 @@
     try {
       const { ports } = await api("/api/ports");
       elements.port.innerHTML = "";
-      if (!ports.length && !selected) elements.port.add(new Option("No serial ports found", ""));
+      if (!ports.length) elements.port.add(new Option("No serial ports found", ""));
       for (const port of ports) {
         const details = [port.product, port.usb && port.vid && port.pid ? `${port.vid}:${port.pid}` : ""].filter(Boolean).join(" · ");
         elements.port.add(new Option(details ? `${port.name} — ${details}` : port.name, port.name));
-      }
-      if (selected && ![...elements.port.options].some((option) => option.value === selected)) {
-        elements.port.add(new Option(`${selected} — preset`, selected), 0);
       }
       if ([...elements.port.options].some((option) => option.value === selected)) elements.port.value = selected;
       elements.connect.disabled = connected ? false : !elements.port.value;

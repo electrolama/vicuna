@@ -55,4 +55,7 @@ func TestEmbeddedTerminalAssets(t *testing.T) {
 			t.Errorf("terminal integration is missing %q", contract)
 		}
 	}
+	if strings.Contains(string(app), "— preset") {
+		t.Error("port refresh must not re-add a missing serial port as a preset")
+	}
 }
