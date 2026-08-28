@@ -56,32 +56,32 @@ jobs:
             goos: linux
             goarch: amd64
             goarm: ""
-            output: vicuna-linux-amd64
+            output: linux-amd64
           - name: linux-arm64
             goos: linux
             goarch: arm64
             goarm: ""
-            output: vicuna-linux-arm64
+            output: linux-arm64
           - name: linux-armv7
             goos: linux
             goarch: arm
             goarm: "7"
-            output: vicuna-linux-armv7
+            output: linux-armv7
           - name: darwin-amd64
             goos: darwin
             goarch: amd64
             goarm: ""
-            output: vicuna-darwin-amd64
+            output: darwin-amd64
           - name: darwin-arm64
             goos: darwin
             goarch: arm64
             goarm: ""
-            output: vicuna-darwin-arm64
+            output: darwin-arm64
           - name: windows-amd64
             goos: windows
             goarch: amd64
             goarm: ""
-            output: vicuna-windows-amd64.exe
+            output: windows-amd64.exe
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -109,14 +109,14 @@ jobs:
             -trimpath \
             -buildvcs=false \
             -ldflags="-s -w -X main.version=$VERSION" \
-            -o "dist/$OUTPUT" \
+            -o "dist/vicuna-$VERSION-$OUTPUT" \
             .
 
       - name: Upload ${{ matrix.name }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ${{ matrix.name }}
-          path: dist/${{ matrix.output }}
+          name: vicuna-${{ needs.metadata.outputs.version }}-${{ matrix.name }}
+          path: dist/vicuna-${{ needs.metadata.outputs.version }}-${{ matrix.output }}
           if-no-files-found: error
 
   bundle:

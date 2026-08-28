@@ -47,12 +47,12 @@ The workflow builds:
 
 | Artifact | Target |
 | --- | --- |
-| `vicuna-linux-amd64` | 64-bit Intel/AMD Linux |
-| `vicuna-linux-arm64` | 64-bit ARM Linux and Raspberry Pi |
-| `vicuna-linux-armv7` | 32-bit ARMv7 Linux and Raspberry Pi |
-| `vicuna-darwin-amd64` | Intel Mac |
-| `vicuna-darwin-arm64` | Apple silicon Mac |
-| `vicuna-windows-amd64.exe` | 64-bit Windows |
+| `vicuna-<version>-linux-amd64` | 64-bit Intel/AMD Linux |
+| `vicuna-<version>-linux-arm64` | 64-bit ARM Linux and Raspberry Pi |
+| `vicuna-<version>-linux-armv7` | 32-bit ARMv7 Linux and Raspberry Pi |
+| `vicuna-<version>-darwin-amd64` | Intel Mac |
+| `vicuna-<version>-darwin-arm64` | Apple silicon Mac |
+| `vicuna-<version>-windows-amd64.exe` | 64-bit Windows |
 | `LICENSE` | Vicuña's MIT licence |
 | `THIRD_PARTY_NOTICES.txt` | Notices and licence texts for bundled dependencies |
 | `SHA256SUMS.txt` | SHA-256 hashes for every binary and licence file |
@@ -71,7 +71,7 @@ After downloading a release, verify it against `SHA256SUMS.txt`:
 
 ```sh
 sha256sum -c SHA256SUMS.txt
-./vicuna-linux-arm64 -version
+./vicuna-0.3.0-linux-arm64 -version
 ```
 
 On macOS, use `shasum -a 256`; on Windows, use `Get-FileHash -Algorithm SHA256`. Compare the result with the published checksum file.
