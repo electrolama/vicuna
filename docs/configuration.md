@@ -10,7 +10,7 @@ Vicuña accepts deployment defaults from JSON while retaining interactive prefer
 | `theme` | `dark` or `light`; both can also be selected in the interface. |
 | `hardware` | `generic-rs232` by default, or the ID of another compiled-in hardware module. |
 | `password` | Empty disables authentication; any other value enables HTTP Basic Authentication with username `vicuna`. |
-| `serial.port` | Host serial-device name, such as `/dev/ttyUSB0` or `COM7`. |
+| `serial.port` | Host serial-device name, such as `/dev/ttyUSB0`, `/dev/cu.usbserial-*`, or `COM7`. |
 | `serial.baud` | Integer from 50 to 12,000,000. |
 | `serial.dataBits` | 5, 6, 7, or 8. |
 | `serial.parity` | `none`, `odd`, `even`, `mark`, or `space`. |

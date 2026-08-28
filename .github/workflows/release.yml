@@ -67,6 +67,16 @@ jobs:
             goarch: arm
             goarm: "7"
             output: vicuna-linux-armv7
+          - name: darwin-amd64
+            goos: darwin
+            goarch: amd64
+            goarm: ""
+            output: vicuna-darwin-amd64
+          - name: darwin-arm64
+            goos: darwin
+            goarch: arm64
+            goarm: ""
+            output: vicuna-darwin-arm64
           - name: windows-amd64
             goos: windows
             goarch: amd64

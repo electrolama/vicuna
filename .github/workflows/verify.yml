@@ -61,3 +61,15 @@ jobs:
         run: |
           go build -trimpath -buildvcs=false -ldflags="-X main.version=ci" -o "$RUNNER_TEMP/vicuna" .
           "$RUNNER_TEMP/vicuna" -version | grep -Fx "vicuna ci"
+
+      - name: Cross-compile macOS builds
+        shell: bash
+        run: |
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build \
+              -trimpath \
+              -buildvcs=false \
+              -ldflags="-s -w -X main.version=ci" \
+              -o "$RUNNER_TEMP/vicuna-darwin-$arch" \
+              .
+          done

@@ -1,6 +1,6 @@
 # Vicuña
 
-Vicuña is an extensible, browser-based serial monitor and terminal for embedded Linux consoles, microcontroller development, and general serial diagnostics. The Go server and web interface are embedded in one executable, making it straightforward to deploy on a workstation, Raspberry Pi, or other Linux host.
+Vicuña is an extensible, browser-based serial monitor and terminal for embedded Linux consoles, microcontroller development, and general serial diagnostics. The Go server and web interface are embedded in one executable, with release builds for Linux, macOS (Intel and Apple silicon), and Windows.
 
 ## Highlights
 

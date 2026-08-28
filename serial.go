@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"go.bug.st/serial"
-	"go.bug.st/serial/enumerator"
 )
 
 type serialConfig struct {
@@ -49,6 +48,15 @@ type portInfo struct {
 	PID          string `json:"pid,omitempty"`
 	SerialNumber string `json:"serialNumber,omitempty"`
 	Product      string `json:"product,omitempty"`
+}
+
+type detailedPortInfo struct {
+	Name         string
+	USB          bool
+	VID          string
+	PID          string
+	SerialNumber string
+	Product      string
 }
 
 type serialPort interface {
@@ -92,7 +100,7 @@ func newSerialManager(h *hub) *serialManager {
 }
 
 func (m *serialManager) Ports() ([]portInfo, error) {
-	details, err := enumerator.GetDetailedPortsList()
+	details, err := getDetailedPortsList()
 	if err != nil {
 		names, fallbackErr := serial.GetPortsList()
 		if fallbackErr != nil {
@@ -110,7 +118,7 @@ func (m *serialManager) Ports() ([]portInfo, error) {
 	for _, detail := range details {
 		ports = append(ports, portInfo{
 			Name:         detail.Name,
-			USB:          detail.IsUSB,
+			USB:          detail.USB,
 			VID:          detail.VID,
 			PID:          detail.PID,
 			SerialNumber: detail.SerialNumber,

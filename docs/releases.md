@@ -50,6 +50,8 @@ The workflow builds:
 | `vicuna-linux-amd64` | 64-bit Intel/AMD Linux |
 | `vicuna-linux-arm64` | 64-bit ARM Linux and Raspberry Pi |
 | `vicuna-linux-armv7` | 32-bit ARMv7 Linux and Raspberry Pi |
+| `vicuna-darwin-amd64` | Intel Mac |
+| `vicuna-darwin-arm64` | Apple silicon Mac |
 | `vicuna-windows-amd64.exe` | 64-bit Windows |
 | `LICENSE` | Vicuña's MIT licence |
 | `THIRD_PARTY_NOTICES.txt` | Notices and licence texts for bundled dependencies |
@@ -72,4 +74,4 @@ sha256sum -c SHA256SUMS.txt
 ./vicuna-linux-arm64 -version
 ```
 
-On Windows, use `Get-FileHash -Algorithm SHA256` and compare the result with the published checksum file.
+On macOS, use `shasum -a 256`; on Windows, use `Get-FileHash -Algorithm SHA256`. Compare the result with the published checksum file.
