@@ -34,6 +34,8 @@ Open the address printed in the log. Vicuña listens on `127.0.0.1:8080` by defa
 
 Hardware modules can give those lines device-specific names and behaviour without changing the serial transport. The included `pt1` adapter is a deliberately small worked example showing how to build such a module; Vicuña does not depend on pt1 hardware.
 
+Hardware profiles and their controls live in the right sidebar so the top bar stays focused on choosing the serial port.
+
 See [Hardware modules](docs/hardware-modules.md) for the extension contract and example.
 
 ## Configuration

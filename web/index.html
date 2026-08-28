@@ -16,17 +16,8 @@
         <span><strong>Vicuña</strong></span>
       </a>
 
-      <div class="hardware-controls">
-        <label class="field hardware-field" title="Hardware profile">
-          <span class="sr-only">Hardware profile</span>
-          <select id="hardwareSelect" aria-label="Hardware profile">
-            <option value="generic-rs232">Generic RS232</option>
-          </select>
-        </label>
-        <div id="hardwarePanel" class="hardware-panel" aria-label="Hardware controls"></div>
-      </div>
-
       <div class="connection-controls">
+        <span class="header-port-label">COM Port</span>
         <label class="field port-field">
           <span class="sr-only">Serial port</span>
           <select id="portSelect" aria-label="Serial port">
@@ -36,32 +27,6 @@
         <button id="refreshPorts" class="icon-button" title="Refresh serial ports" aria-label="Refresh serial ports">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
         </button>
-        <label class="field baud-field">
-          <span class="sr-only">Baud rate</span>
-          <select id="baudSelect" aria-label="Baud rate">
-            <option value="300">300</option><option value="1200">1,200</option><option value="2400">2,400</option>
-            <option value="4800">4,800</option><option value="9600">9,600</option><option value="19200">19,200</option>
-            <option value="38400">38,400</option><option value="57600">57,600</option><option value="115200" selected>115,200</option>
-            <option value="230400">230,400</option><option value="460800">460,800</option><option value="921600">921,600</option>
-            <option value="1000000">1,000,000</option><option value="2000000">2,000,000</option><option value="3000000">3,000,000</option>
-            <option value="custom">Custom…</option>
-          </select>
-          <span class="field-unit">baud</span>
-        </label>
-        <label id="customBaudField" class="field custom-baud-field" hidden>
-          <span class="sr-only">Custom baud rate</span>
-          <input id="customBaudInput" type="number" min="50" max="12000000" value="115200" aria-label="Custom baud rate">
-        </label>
-        <button id="serialSettingsButton" class="icon-button" title="Serial framing" aria-label="Serial framing" aria-expanded="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
-        </button>
-        <button id="connectButton" class="connect-button" disabled>
-          <span class="status-dot"></span><span class="connect-label">Connect</span>
-        </button>
-      </div>
-
-      <div class="header-status">
-        <span id="streamStatus" class="stream-status" title="Browser event stream"><i></i> UI link</span>
       </div>
     </header>
 
@@ -160,6 +125,48 @@
       </label>
       <button id="sendButton" class="send-button" disabled>Send <kbd>Enter</kbd></button>
     </footer>
+
+    <aside class="right-panel" aria-label="Connection and hardware settings">
+      <section class="side-section">
+        <div class="side-section-heading"><span>Connection</span><span id="streamStatus" class="stream-status" title="Browser event stream"><i></i> UI link</span></div>
+        <label class="side-field-label" for="baudSelect">Baud rate</label>
+        <label class="field baud-field">
+          <select id="baudSelect" aria-label="Baud rate">
+            <option value="300">300</option><option value="1200">1,200</option><option value="2400">2,400</option>
+            <option value="4800">4,800</option><option value="9600">9,600</option><option value="19200">19,200</option>
+            <option value="38400">38,400</option><option value="57600">57,600</option><option value="115200" selected>115,200</option>
+            <option value="230400">230,400</option><option value="460800">460,800</option><option value="921600">921,600</option>
+            <option value="1000000">1,000,000</option><option value="2000000">2,000,000</option><option value="3000000">3,000,000</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <span class="field-unit">baud</span>
+        </label>
+        <label id="customBaudField" class="field custom-baud-field" hidden>
+          <span class="sr-only">Custom baud rate</span>
+          <input id="customBaudInput" type="number" min="50" max="12000000" value="115200" aria-label="Custom baud rate">
+        </label>
+        <button id="serialSettingsButton" class="side-action" title="Serial framing" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9A1.7 1.7 0 0 0 21 10h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+          <span>Serial framing</span><strong id="framingInline">8-N-1</strong>
+        </button>
+        <button id="connectButton" class="connect-button" disabled>
+          <span class="status-dot"></span><span class="connect-label">Connect</span>
+        </button>
+      </section>
+
+      <section class="side-section hardware-section">
+        <div class="side-section-heading"><span>Hardware</span></div>
+        <label class="side-field-label" for="hardwareSelect">Profile</label>
+        <label class="field hardware-field" title="Hardware profile">
+          <select id="hardwareSelect" aria-label="Hardware profile">
+            <option value="generic-rs232">Generic RS232</option>
+          </select>
+        </label>
+        <p id="hardwareDescription" class="side-description"></p>
+        <div id="hardwarePanel" class="hardware-panel" aria-label="Hardware controls"></div>
+      </section>
+
+    </aside>
 
     <div id="toastRegion" class="toast-region" aria-live="polite"></div>
   </div>

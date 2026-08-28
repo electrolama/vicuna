@@ -12,9 +12,9 @@
     port: $("#portSelect"), refresh: $("#refreshPorts"), baud: $("#baudSelect"),
     customBaud: $("#customBaudInput"), customBaudField: $("#customBaudField"),
     connect: $("#connectButton"), connectLabel: $(".connect-label"), stream: $("#streamStatus"),
-    hardware: $("#hardwareSelect"), hardwarePanel: $("#hardwarePanel"),
+    hardware: $("#hardwareSelect"), hardwarePanel: $("#hardwarePanel"), hardwareDescription: $("#hardwareDescription"),
     settingsButton: $("#serialSettingsButton"), settingsPopover: $("#serialPopover"),
-    dataBits: $("#dataBits"), parity: $("#parity"), stopBits: $("#stopBits"), framing: $("#framingSummary"),
+    dataBits: $("#dataBits"), parity: $("#parity"), stopBits: $("#stopBits"), framing: $("#framingSummary"), framingInline: $("#framingInline"),
     timestamps: $("#timestampsToggle"), ansi: $("#ansiToggle"), autoscroll: $("#autoscrollToggle"), theme: $("#themeButton"),
     clear: $("#clearButton"), export: $("#exportButton"), more: $("#moreButton"), linePopover: $("#linePopover"),
     sendBreak: $("#breakButton"), localEcho: $("#localEchoToggle"), resetBuffers: $("#resetBuffersButton"),
@@ -445,6 +445,7 @@
     const module = activeHardwareModule();
     elements.hardwarePanel.setAttribute("aria-label", `${module.label} hardware controls`);
     elements.hardwarePanel.dataset.module = module.id;
+    elements.hardwareDescription.textContent = module.description;
     module.render();
   }
 
@@ -863,6 +864,8 @@
   function updateFramingSummary() {
     const parity = elements.parity.value === "none" ? "no parity" : `${elements.parity.value} parity`;
     elements.framing.textContent = `${elements.dataBits.value} data bits · ${parity} · ${elements.stopBits.value} stop bit${elements.stopBits.value === "1" ? "" : "s"}`;
+    const parityCode = elements.parity.value === "none" ? "N" : elements.parity.value[0].toUpperCase();
+    elements.framingInline.textContent = `${elements.dataBits.value}-${parityCode}-${elements.stopBits.value}`;
   }
 
   function positionPopover(button, popover) {
