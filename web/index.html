@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark light">
   <meta name="description" content="Vicuña is an extensible browser-based serial monitor and terminal.">
   <title>❌ Vicuña — Disconnected</title>
+  <link rel="stylesheet" href="xterm.css">
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -90,9 +91,7 @@
 
     <main class="workspace">
       <section id="terminalView" class="console-view active" role="tabpanel">
-        <div id="terminal" class="terminal" tabindex="0" aria-label="Interactive serial terminal">
-          <div class="terminal-screen"></div><span class="terminal-cursor" aria-hidden="true"></span>
-        </div>
+        <div id="terminal" class="terminal" aria-label="Interactive serial terminal"></div>
         <div class="empty-state" id="terminalEmpty">
           <div class="empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 7 4 4-4 4M11 17h7"/></svg></div>
           <strong>Ready for a serial session</strong>
@@ -166,10 +165,17 @@
         <div id="hardwarePanel" class="hardware-panel" aria-label="Hardware controls"></div>
       </section>
 
+      <section class="side-section terminal-geometry-section">
+        <div class="side-section-heading"><span>Terminal geometry</span><strong id="terminalSize">80 × 24</strong></div>
+        <p class="side-description">A raw UART cannot deliver a resize signal to Linux. At the Raspberry Pi shell, run <code>resize</code> or use:</p>
+        <button id="copyTerminalSize" class="geometry-command" title="Copy command to clipboard"><code id="terminalSizeCommand">stty rows 24 cols 80</code><span>Copy</span></button>
+      </section>
     </aside>
 
     <div id="toastRegion" class="toast-region" aria-live="polite"></div>
   </div>
+  <script src="xterm.js" defer></script>
+  <script src="xterm-addon-fit.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

@@ -18,7 +18,8 @@
     timestamps: $("#timestampsToggle"), ansi: $("#ansiToggle"), autoscroll: $("#autoscrollToggle"), theme: $("#themeButton"),
     clear: $("#clearButton"), export: $("#exportButton"), more: $("#moreButton"), linePopover: $("#linePopover"),
     sendBreak: $("#breakButton"), localEcho: $("#localEchoToggle"), resetBuffers: $("#resetBuffersButton"),
-    terminal: $("#terminal"), terminalScreen: $(".terminal-screen"), terminalCursor: $(".terminal-cursor"), terminalEmpty: $("#terminalEmpty"),
+    terminal: $("#terminal"), terminalEmpty: $("#terminalEmpty"), terminalSize: $("#terminalSize"),
+    terminalSizeCommand: $("#terminalSizeCommand"), copyTerminalSize: $("#copyTerminalSize"),
     monitor: $("#monitorOutput"), hex: $("#hexOutput"), workspace: $(".workspace"),
     sendInput: $("#sendInput"), lineEnding: $("#lineEnding"), send: $("#sendButton"),
     toast: $("#toastRegion")
@@ -51,325 +52,120 @@
   let ansiPalette = ansiPalettes.dark;
 
   class TerminalEmulator {
-    constructor(container, screen, cursor) {
+    constructor(container) {
+      if (typeof Terminal !== "function" || !globalThis.FitAddon?.FitAddon) {
+        throw new Error("xterm.js failed to load");
+      }
       this.container = container;
-      this.screenNode = screen;
-      this.cursorNode = cursor;
-      this.cols = 80;
-      this.rows = 24;
-      this.row = 0;
-      this.col = 0;
-      this.scrollTop = 0;
-      this.scrollBottom = 23;
-      this.savedCursor = { row: 0, col: 0, attr: null };
-      this.attr = this.defaultAttr();
-      this.lines = this.makeLines(this.rows);
-      this.scrollback = [];
-      this.state = "normal";
-      this.sequence = "";
-      this.decoders = { rx: new TextDecoder(), tx: new TextDecoder() };
-      this.colorsEnabled = true;
-      this.renderQueued = false;
-      this.appCursor = false;
-      this.bracketedPaste = false;
-      this.altSnapshot = null;
-      this.cellWidth = 8;
-      this.lineHeight = 18;
-    }
-
-    defaultAttr() { return { fg: null, bg: null, bold: false, dim: false, underline: false, inverse: false }; }
-    blank(attr = this.attr) { return { ch: " ", attr: { ...attr } }; }
-    blankLine() { return Array.from({ length: this.cols }, () => this.blank(this.defaultAttr())); }
-    makeLines(count) { return Array.from({ length: count }, () => this.blankLine()); }
-
-    reset() {
-      this.row = 0; this.col = 0; this.scrollTop = 0; this.scrollBottom = this.rows - 1;
-      this.attr = this.defaultAttr(); this.lines = this.makeLines(this.rows); this.scrollback = [];
-      this.state = "normal"; this.sequence = ""; this.altSnapshot = null; this.appCursor = false; this.bracketedPaste = false;
-      this.scheduleRender();
-    }
-
-    clearDisplay() {
-      this.lines = this.makeLines(this.rows); this.scrollback = []; this.row = 0; this.col = 0;
-      this.scheduleRender();
-    }
-
-    writeBytes(bytes, direction = "rx") { this.write(this.decoders[direction].decode(bytes, { stream: true })); }
-
-    write(text) {
-      for (const char of text) this.consume(char);
-      this.scheduleRender();
-    }
-
-    consume(char) {
-      if (this.state === "osc") {
-        if (char === "\u0007") { this.state = "normal"; this.sequence = ""; }
-        else if (char === "\u001b") this.state = "osc-esc";
-        return;
-      }
-      if (this.state === "osc-esc") {
-        this.state = char === "\\" ? "normal" : "osc";
-        return;
-      }
-      if (this.state === "csi") {
-        if (char >= "@" && char <= "~") {
-          this.handleCSI(this.sequence, char);
-          this.sequence = ""; this.state = "normal";
-        } else if (this.sequence.length < 96) this.sequence += char;
-        return;
-      }
-      if (this.state === "esc") {
-        this.state = "normal";
-        if (char === "[") { this.state = "csi"; this.sequence = ""; return; }
-        if (char === "]") { this.state = "osc"; this.sequence = ""; return; }
-        if (char === "7") this.saveCursor();
-        else if (char === "8") this.restoreCursor();
-        else if (char === "D") this.lineFeed();
-        else if (char === "E") { this.col = 0; this.lineFeed(); }
-        else if (char === "M") this.reverseIndex();
-        else if (char === "c") this.reset();
-        return;
-      }
-      if (char === "\u001b") { this.state = "esc"; return; }
-      if (char === "\n" || char === "\u000b" || char === "\u000c") { this.lineFeed(); return; }
-      if (char === "\r") { this.col = 0; return; }
-      if (char === "\b") { this.col = Math.max(0, this.col - 1); return; }
-      if (char === "\t") { this.col = Math.min(this.cols - 1, (Math.floor(this.col / 8) + 1) * 8); return; }
-      if (char < " " || char === "\u007f") return;
-      this.put(char);
-    }
-
-    put(char) {
-      if (this.col >= this.cols) { this.col = 0; this.lineFeed(); }
-      this.lines[this.row][this.col] = { ch: char, attr: { ...this.attr } };
-      this.col += 1;
-    }
-
-    lineFeed() {
-      if (this.row === this.scrollBottom) this.scrollUp(1);
-      else this.row = Math.min(this.rows - 1, this.row + 1);
-    }
-
-    reverseIndex() {
-      if (this.row === this.scrollTop) this.scrollDown(1);
-      else this.row = Math.max(0, this.row - 1);
-    }
-
-    scrollUp(count) {
-      for (let i = 0; i < count; i++) {
-        const removed = this.lines.splice(this.scrollTop, 1)[0];
-        this.lines.splice(this.scrollBottom, 0, this.blankLine());
-        if (this.scrollTop === 0 && !this.altSnapshot) {
-          this.scrollback.push(removed);
-          if (this.scrollback.length > 750) this.scrollback.shift();
+      this.fitAddon = new globalThis.FitAddon.FitAddon();
+      this.instance = new Terminal({
+        convertEol: false,
+        cursorBlink: true,
+        cursorStyle: "block",
+        disableStdin: true,
+        drawBoldTextInBrightColors: true,
+        fontFamily: '"Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace',
+        fontSize: 13,
+        lineHeight: 1.35,
+        macOptionIsMeta: true,
+        minimumContrastRatio: 1,
+        scrollback: 5000,
+        windowOptions: {
+          getCellSizePixels: true,
+          getWinSizeChars: true,
+          getWinSizePixels: true
         }
-      }
+      });
+      this.instance.loadAddon(this.fitAddon);
+      this.instance.open(container);
+      this.instance.onResize(({ cols, rows }) => this.updateGeometry(cols, rows));
+      this.inputBound = false;
+      this.resizeQueued = false;
+      this.resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => this.resize()) : null;
+      this.resizeObserver?.observe(container);
+      this.setTheme(settings.theme || "dark", settings.ansi !== false);
+      this.updateGeometry(this.instance.cols, this.instance.rows);
     }
 
-    scrollDown(count) {
-      for (let i = 0; i < count; i++) {
-        this.lines.splice(this.scrollBottom, 1);
-        this.lines.splice(this.scrollTop, 0, this.blankLine());
-      }
+    bindInput() {
+      if (this.inputBound) return;
+      this.inputBound = true;
+      this.instance.onData((data) => queueDirect(data));
+      this.instance.onBinary((data) => queueDirectBytes(Uint8Array.from(data, (char) => char.charCodeAt(0) & 0xff)));
     }
 
-    saveCursor() { this.savedCursor = { row: this.row, col: this.col, attr: { ...this.attr } }; }
-    restoreCursor() {
-      this.row = clamp(this.savedCursor.row, 0, this.rows - 1);
-      this.col = clamp(this.savedCursor.col, 0, this.cols - 1);
-      if (this.savedCursor.attr) this.attr = { ...this.savedCursor.attr };
-    }
-
-    handleCSI(raw, command) {
-      let privateMode = "";
-      if (raw.startsWith("?") || raw.startsWith(">") || raw.startsWith("!")) { privateMode = raw[0]; raw = raw.slice(1); }
-      const params = raw === "" ? [] : raw.split(";").map((value) => value === "" ? 0 : Number.parseInt(value, 10));
-      const amount = (index = 0, fallback = 1) => params[index] || fallback;
-      switch (command) {
-        case "A": this.row = Math.max(this.scrollTop, this.row - amount()); break;
-        case "B": this.row = Math.min(this.scrollBottom, this.row + amount()); break;
-        case "C": this.col = Math.min(this.cols - 1, this.col + amount()); break;
-        case "D": this.col = Math.max(0, this.col - amount()); break;
-        case "E": this.row = Math.min(this.scrollBottom, this.row + amount()); this.col = 0; break;
-        case "F": this.row = Math.max(this.scrollTop, this.row - amount()); this.col = 0; break;
-        case "G": case "`": this.col = clamp(amount(0, 1) - 1, 0, this.cols - 1); break;
-        case "d": this.row = clamp(amount(0, 1) - 1, 0, this.rows - 1); break;
-        case "H": case "f": this.row = clamp(amount(0, 1) - 1, 0, this.rows - 1); this.col = clamp(amount(1, 1) - 1, 0, this.cols - 1); break;
-        case "J": this.eraseDisplay(params[0] || 0); break;
-        case "K": this.eraseLine(params[0] || 0); break;
-        case "m": this.sgr(params); break;
-        case "s": this.saveCursor(); break;
-        case "u": this.restoreCursor(); break;
-        case "r": {
-          const top = amount(0, 1) - 1, bottom = amount(1, this.rows) - 1;
-          if (top >= 0 && bottom < this.rows && top < bottom) { this.scrollTop = top; this.scrollBottom = bottom; this.row = top; this.col = 0; }
-          break;
-        }
-        case "@": this.insertChars(amount()); break;
-        case "P": this.deleteChars(amount()); break;
-        case "L": this.insertLines(amount()); break;
-        case "M": this.deleteLines(amount()); break;
-        case "S": this.scrollUp(amount()); break;
-        case "T": this.scrollDown(amount()); break;
-        case "h": case "l": if (privateMode === "?") this.setPrivateModes(params, command === "h"); break;
-      }
-    }
-
-    eraseDisplay(mode) {
-      if (mode === 2 || mode === 3) {
-        this.lines = this.makeLines(this.rows);
-        if (mode === 3) this.scrollback = [];
-      } else if (mode === 0) {
-        this.eraseLine(0);
-        for (let row = this.row + 1; row < this.rows; row++) this.lines[row] = this.blankLine();
-      } else if (mode === 1) {
-        this.eraseLine(1);
-        for (let row = 0; row < this.row; row++) this.lines[row] = this.blankLine();
-      }
-    }
-
-    eraseLine(mode) {
-      const start = mode === 1 || mode === 2 ? 0 : this.col;
-      const end = mode === 0 || mode === 2 ? this.cols : this.col + 1;
-      for (let col = start; col < end; col++) this.lines[this.row][col] = this.blank(this.defaultAttr());
-    }
-
-    insertChars(count) {
-      const line = this.lines[this.row];
-      line.splice(this.col, 0, ...Array.from({ length: count }, () => this.blank()));
-      line.length = this.cols;
-    }
-
-    deleteChars(count) {
-      const line = this.lines[this.row];
-      line.splice(this.col, count);
-      while (line.length < this.cols) line.push(this.blank());
-    }
-
-    insertLines(count) {
-      if (this.row < this.scrollTop || this.row > this.scrollBottom) return;
-      for (let i = 0; i < count; i++) { this.lines.splice(this.row, 0, this.blankLine()); this.lines.splice(this.scrollBottom + 1, 1); }
-    }
-
-    deleteLines(count) {
-      if (this.row < this.scrollTop || this.row > this.scrollBottom) return;
-      for (let i = 0; i < count; i++) { this.lines.splice(this.row, 1); this.lines.splice(this.scrollBottom, 0, this.blankLine()); }
-    }
-
-    sgr(params) {
-      if (!params.length) params = [0];
-      for (let i = 0; i < params.length; i++) {
-        const code = params[i];
-        if (code === 0) this.attr = this.defaultAttr();
-        else if (code === 1) this.attr.bold = true;
-        else if (code === 2) this.attr.dim = true;
-        else if (code === 4) this.attr.underline = true;
-        else if (code === 7) this.attr.inverse = true;
-        else if (code === 22) { this.attr.bold = false; this.attr.dim = false; }
-        else if (code === 24) this.attr.underline = false;
-        else if (code === 27) this.attr.inverse = false;
-        else if (code >= 30 && code <= 37) this.attr.fg = ansiPalette[code - 30];
-        else if (code >= 90 && code <= 97) this.attr.fg = ansiPalette[code - 90 + 8];
-        else if (code === 39) this.attr.fg = null;
-        else if (code >= 40 && code <= 47) this.attr.bg = ansiPalette[code - 40];
-        else if (code >= 100 && code <= 107) this.attr.bg = ansiPalette[code - 100 + 8];
-        else if (code === 49) this.attr.bg = null;
-        else if ((code === 38 || code === 48) && params[i + 1] === 5 && params[i + 2] !== undefined) {
-          this.attr[code === 38 ? "fg" : "bg"] = color256(params[i + 2]); i += 2;
-        } else if ((code === 38 || code === 48) && params[i + 1] === 2 && params[i + 4] !== undefined) {
-          this.attr[code === 38 ? "fg" : "bg"] = `rgb(${clamp(params[i + 2],0,255)},${clamp(params[i + 3],0,255)},${clamp(params[i + 4],0,255)})`; i += 4;
-        }
-      }
-    }
-
-    setPrivateModes(params, enabled) {
-      for (const mode of params) {
-        if (mode === 1) this.appCursor = enabled;
-        else if (mode === 2004) this.bracketedPaste = enabled;
-        else if (mode === 1047 || mode === 1049) this.setAlternateScreen(enabled);
-      }
-    }
-
-    setAlternateScreen(enabled) {
-      if (enabled && !this.altSnapshot) {
-        this.altSnapshot = { lines: this.lines, row: this.row, col: this.col, scrollTop: this.scrollTop, scrollBottom: this.scrollBottom };
-        this.lines = this.makeLines(this.rows); this.row = 0; this.col = 0; this.scrollTop = 0; this.scrollBottom = this.rows - 1;
-      } else if (!enabled && this.altSnapshot) {
-        Object.assign(this, this.altSnapshot); this.altSnapshot = null;
-      }
+    writeBytes(bytes) {
+      const viewport = this.instance.buffer.active.viewportY;
+      this.instance.write(bytes, () => {
+        if (elements.autoscroll.checked) this.instance.scrollToBottom();
+        else this.instance.scrollToLine(viewport);
+      });
     }
 
     resize() {
-      const probe = document.createElement("span");
-      probe.textContent = "MMMMMMMMMM"; probe.style.visibility = "hidden"; probe.style.position = "absolute";
-      this.screenNode.appendChild(probe);
-      const rect = probe.getBoundingClientRect(); probe.remove();
-      if (rect.width) this.cellWidth = rect.width / 10;
-      if (rect.height) this.lineHeight = rect.height;
-      const cols = Math.max(20, Math.floor((this.container.clientWidth - 34) / this.cellWidth));
-      const rows = Math.max(4, Math.floor((this.container.clientHeight - 30) / this.lineHeight));
-      if (cols === this.cols && rows === this.rows) { this.scheduleRender(); return; }
-      for (const line of [...this.scrollback, ...this.lines]) {
-        if (line.length > cols) line.length = cols;
-        while (line.length < cols) line.push(this.blank(this.defaultAttr()));
-      }
-      if (rows > this.rows) while (this.lines.length < rows) this.lines.push(this.blankLineSized(cols));
-      else if (rows < this.rows) {
-        const remove = Math.min(this.lines.length - rows, this.row);
-        if (remove > 0 && !this.altSnapshot) this.scrollback.push(...this.lines.splice(0, remove));
-        while (this.lines.length > rows) this.lines.pop();
-      }
-      this.cols = cols; this.rows = rows;
-      for (const line of this.lines) { if (line.length > cols) line.length = cols; while (line.length < cols) line.push(this.blank(this.defaultAttr())); }
-      while (this.lines.length < rows) this.lines.push(this.blankLine());
-      this.row = clamp(this.row, 0, rows - 1); this.col = clamp(this.col, 0, cols - 1);
-      this.scrollTop = 0; this.scrollBottom = rows - 1;
-      this.scheduleRender();
+      if (this.resizeQueued || !this.container.clientWidth || !this.container.clientHeight) return;
+      this.resizeQueued = true;
+      requestAnimationFrame(() => {
+        this.resizeQueued = false;
+        if (!this.container.clientWidth || !this.container.clientHeight) return;
+        this.fitAddon.fit();
+        this.updateGeometry(this.instance.cols, this.instance.rows);
+      });
     }
 
-    blankLineSized(cols) { return Array.from({ length: cols }, () => this.blank(this.defaultAttr())); }
-    scheduleRender() {
-      if (this.renderQueued) return;
-      this.renderQueued = true;
-      requestAnimationFrame(() => { this.renderQueued = false; this.render(); });
+    updateGeometry(cols, rows) {
+      if (!elements.terminalSize || !elements.terminalSizeCommand) return;
+      elements.terminalSize.textContent = `${cols} × ${rows}`;
+      elements.terminalSizeCommand.textContent = `stty rows ${rows} cols ${cols}`;
     }
 
-    render() {
-      const allLines = [...this.scrollback, ...this.lines];
-      this.screenNode.innerHTML = allLines.map((line) => `<div class="terminal-line">${this.renderLine(line)}</div>`).join("");
-      this.cursorNode.style.left = `${17 + this.col * this.cellWidth}px`;
-      this.cursorNode.style.top = `${15 + (this.scrollback.length + this.row) * this.lineHeight}px`;
-      if (elements.autoscroll.checked) this.container.scrollTop = this.container.scrollHeight;
-    }
-
-    renderLine(line) {
-      let html = "", currentKey = null, text = "", attr = null;
-      const flush = () => {
-        if (!text) return;
-        const content = escapeHTML(text);
-        if (!this.colorsEnabled || !attr) html += content;
-        else {
-          let fg = attr.fg, bg = attr.bg;
-          if (attr.inverse) [fg, bg] = [bg || "#d8dee9", fg || "#090c11"];
-          const styles = [fg && `color:${fg}`, bg && `background:${bg}`].filter(Boolean).join(";");
-          const classes = [attr.bold && "bold", attr.dim && "dim", attr.underline && "underline"].filter(Boolean).join(" ");
-          html += styles || classes ? `<span${classes ? ` class="${classes}"` : ""}${styles ? ` style="${styles}"` : ""}>${content}</span>` : content;
-        }
-        text = "";
+    setTheme(theme, colorsEnabled) {
+      const light = theme === "light";
+      const palette = ansiPalettes[light ? "light" : "dark"];
+      const foreground = light ? "#1f1f1f" : "#d4d4d4";
+      const background = light ? "#ffffff" : "#181818";
+      const colors = colorsEnabled ? palette : Array(16).fill(foreground);
+      this.instance.options.theme = {
+        foreground,
+        background,
+        cursor: light ? "#16825d" : "#8affca",
+        cursorAccent: background,
+        selectionBackground: light ? "#0066b840" : "#4daafc40",
+        black: colors[0], red: colors[1], green: colors[2], yellow: colors[3],
+        blue: colors[4], magenta: colors[5], cyan: colors[6], white: colors[7],
+        brightBlack: colors[8], brightRed: colors[9], brightGreen: colors[10], brightYellow: colors[11],
+        brightBlue: colors[12], brightMagenta: colors[13], brightCyan: colors[14], brightWhite: colors[15]
       };
-      for (const cell of line) {
-        const key = JSON.stringify(cell.attr);
-        if (key !== currentKey) { flush(); currentKey = key; attr = cell.attr; }
-        text += cell.ch;
-      }
-      flush();
-      return html || " ";
     }
 
-    dump() { return [...this.scrollback, ...this.lines].map((line) => line.map((cell) => cell.ch).join("").trimEnd()).join("\n"); }
+    setInputEnabled(enabled) { this.instance.options.disableStdin = !enabled; }
+    focus() { this.instance.focus(); }
+
+    clearDisplay() {
+      this.instance.reset();
+      this.instance.clear();
+    }
+
+    dump() {
+      const buffer = this.instance.buffer.active;
+      const output = [];
+      let logicalLine = "";
+      for (let row = 0; row < buffer.length; row++) {
+        const line = buffer.getLine(row);
+        if (!line) continue;
+        const text = line.translateToString(true);
+        if (line.isWrapped) logicalLine += text;
+        else {
+          if (row > 0) output.push(logicalLine.trimEnd());
+          logicalLine = text;
+        }
+      }
+      output.push(logicalLine.trimEnd());
+      return output.join("\n").replace(/\n+$/, "");
+    }
   }
 
-  const terminal = new TerminalEmulator(elements.terminal, elements.terminalScreen, elements.terminalCursor);
+  const terminal = new TerminalEmulator(elements.terminal);
 
   class HardwareModule {
     constructor(id, label) { this.id = id; this.label = label; this.description = ""; }
@@ -468,16 +264,6 @@
     renderHardwarePanel();
   }
 
-  function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-  function color256(index) {
-    index = clamp(index, 0, 255);
-    if (index < 16) return ansiPalette[index];
-    if (index >= 232) { const level = 8 + (index - 232) * 10; return `rgb(${level},${level},${level})`; }
-    const value = index - 16, red = Math.floor(value / 36), green = Math.floor((value % 36) / 6), blue = value % 6;
-    const channel = (part) => part === 0 ? 0 : 55 + part * 40;
-    return `rgb(${channel(red)},${channel(green)},${channel(blue)})`;
-  }
-
   function escapeHTML(value) {
     return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   }
@@ -538,7 +324,7 @@
     elements.lineEnding.value = settings.lineEnding;
     if (hardwareModules.has(settings.hardware)) elements.hardware.value = settings.hardware;
     applyTheme(settings.theme);
-    terminal.colorsEnabled = settings.ansi;
+    terminal.setTheme(settings.theme, settings.ansi);
     updateTimestampClass(); updateFramingSummary(); setView(activeView); setSendMode(sendMode); renderHardwarePanel();
     applyingSettings = false;
   }
@@ -556,21 +342,11 @@
   }
 
   function applyTheme(theme) {
-    const previousPalette = ansiPalette;
     settings.theme = theme === "light" ? "light" : "dark";
     ansiPalette = ansiPalettes[settings.theme];
-    if (previousPalette !== ansiPalette) {
-      const remap = (attr) => {
-        if (!attr) return;
-        const foreground = previousPalette.indexOf(attr.fg), background = previousPalette.indexOf(attr.bg);
-        if (foreground >= 0) attr.fg = ansiPalette[foreground];
-        if (background >= 0) attr.bg = ansiPalette[background];
-      };
-      for (const line of [...terminal.scrollback, ...terminal.lines]) for (const cell of line) remap(cell.attr);
-      remap(terminal.attr); remap(terminal.savedCursor.attr);
-    }
     document.documentElement.dataset.theme = settings.theme;
     document.documentElement.style.colorScheme = settings.theme;
+    terminal.setTheme(settings.theme, elements.ansi.checked);
     const light = settings.theme === "light";
     elements.theme.querySelector("span").textContent = light ? "Light" : "Dark";
     elements.theme.title = light ? "Switch to dark theme" : "Switch to light theme";
@@ -638,13 +414,14 @@
     elements.refresh.disabled = connected;
     elements.settingsButton.disabled = connected;
     elements.hardware.disabled = connected;
+    terminal.setInputEnabled(connected);
     elements.connect.disabled = connected ? false : !elements.port.value;
     if (connected && status.config) {
       elements.port.value = status.config.port;
       setBaud(status.config.baud);
       signals = { ...signals, connected: true, dtr: status.config.dtr, rts: status.config.rts };
       elements.terminalEmpty.hidden = true;
-      if (!wasConnected) { toast(`Connected to ${status.config.port} at ${status.config.baud} baud`); elements.terminal.focus(); }
+      if (!wasConnected) { toast(`Connected to ${status.config.port} at ${status.config.baud} baud`); terminal.focus(); }
     } else if (wasConnected) {
       signals = { connected: false, available: false, dtr: false, rts: false, cts: false, dsr: false, ri: false, dcd: false };
       toast(status.error ? `Serial link closed: ${status.error}` : "Serial port disconnected", Boolean(status.error));
@@ -803,8 +580,12 @@
 
   let directChunks = [], directTimer = null;
   function queueDirect(text) {
-    if (!connected || !text) return;
-    directChunks.push(encoder.encode(text));
+    if (!text) return;
+    queueDirectBytes(encoder.encode(text));
+  }
+  function queueDirectBytes(bytes) {
+    if (!connected || !bytes.length) return;
+    directChunks.push(bytes);
     if (!directTimer) directTimer = setTimeout(flushDirect, 8);
   }
   async function flushDirect() {
@@ -816,40 +597,12 @@
     catch (error) { toast(error.message, true); }
   }
 
-  function terminalKey(event) {
-    if (!connected || event.metaKey) return;
-    let output = null;
-    const cursorPrefix = terminal.appCursor ? "\x1bO" : "\x1b[";
-    const keys = {
-      Enter: "\r", Backspace: "\x7f", Tab: "\t", Escape: "\x1b",
-      ArrowUp: `${cursorPrefix}A`, ArrowDown: `${cursorPrefix}B`, ArrowRight: `${cursorPrefix}C`, ArrowLeft: `${cursorPrefix}D`,
-      Home: "\x1b[H", End: "\x1b[F", Insert: "\x1b[2~", Delete: "\x1b[3~", PageUp: "\x1b[5~", PageDown: "\x1b[6~",
-      F1: "\x1bOP", F2: "\x1bOQ", F3: "\x1bOR", F4: "\x1bOS", F5: "\x1b[15~", F6: "\x1b[17~",
-      F7: "\x1b[18~", F8: "\x1b[19~", F9: "\x1b[20~", F10: "\x1b[21~", F11: "\x1b[23~", F12: "\x1b[24~"
-    };
-    if (event.ctrlKey && event.key.length === 1) {
-      const code = event.key.toUpperCase().charCodeAt(0);
-      if (code >= 64 && code <= 95) output = String.fromCharCode(code - 64);
-    } else if (keys[event.key] !== undefined) output = keys[event.key];
-    else if (event.key.length === 1 && !event.altKey) output = event.key;
-    if (event.altKey && event.key.length === 1 && !event.ctrlKey) output = `\x1b${event.key}`;
-    if (output !== null) { event.preventDefault(); queueDirect(output); }
-  }
-
-  function terminalPaste(event) {
-    if (!connected) return;
-    event.preventDefault();
-    let text = event.clipboardData.getData("text");
-    if (terminal.bracketedPaste) text = `\x1b[200~${text}\x1b[201~`;
-    queueDirect(text);
-  }
-
   function setView(view) {
     activeView = ["terminal", "monitor", "hex"].includes(view) ? view : "terminal";
     $$(".view-tab").forEach((tab) => { const active = tab.dataset.view === activeView; tab.classList.toggle("active", active); tab.setAttribute("aria-selected", String(active)); });
     $$(".console-view").forEach((panel) => { const active = panel.id === `${activeView}View`; panel.classList.toggle("active", active); panel.hidden = !active; });
     saveSettings();
-    if (activeView === "terminal") { terminal.resize(); if (connected) elements.terminal.focus(); }
+    if (activeView === "terminal") { terminal.resize(); if (connected) terminal.focus(); }
   }
 
   function setSendMode(mode) {
@@ -909,6 +662,7 @@
   }
 
   function bindEvents() {
+    terminal.bindInput();
     elements.refresh.addEventListener("click", refreshPorts);
     elements.connect.addEventListener("click", toggleConnection);
     elements.port.addEventListener("change", () => { elements.connect.disabled = !elements.port.value; saveSettings(); });
@@ -928,18 +682,20 @@
     $$(".view-tab").forEach((tab) => tab.addEventListener("click", () => setView(tab.dataset.view)));
     $$(".send-mode").forEach((button) => button.addEventListener("click", () => setSendMode(button.dataset.mode)));
     elements.timestamps.addEventListener("change", () => { updateTimestampClass(); saveSettings(); });
-    elements.ansi.addEventListener("change", () => { terminal.colorsEnabled = elements.ansi.checked; terminal.scheduleRender(); scheduleLogRender(); saveSettings(); });
+    elements.ansi.addEventListener("change", () => { terminal.setTheme(settings.theme, elements.ansi.checked); scheduleLogRender(); saveSettings(); });
     elements.autoscroll.addEventListener("change", saveSettings);
-    elements.theme.addEventListener("click", () => { applyTheme(settings.theme === "dark" ? "light" : "dark"); terminal.scheduleRender(); scheduleLogRender(); saveSettings(); });
+    elements.theme.addEventListener("click", () => { applyTheme(settings.theme === "dark" ? "light" : "dark"); scheduleLogRender(); saveSettings(); });
     elements.localEcho.addEventListener("change", saveSettings);
     elements.lineEnding.addEventListener("change", saveSettings);
     elements.clear.addEventListener("click", clearViews);
     elements.export.addEventListener("click", exportActiveView);
     elements.send.addEventListener("click", sendComposer);
     elements.sendInput.addEventListener("keydown", (event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendComposer(); } });
-    elements.terminal.addEventListener("keydown", terminalKey);
-    elements.terminal.addEventListener("paste", terminalPaste);
-    elements.terminal.addEventListener("mousedown", () => elements.terminal.focus());
+    elements.terminal.addEventListener("mousedown", () => terminal.focus());
+    elements.copyTerminalSize.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(elements.terminalSizeCommand.textContent); toast("stty command copied"); }
+      catch { toast("Could not copy the terminal-size command", true); }
+    });
     elements.sendBreak.addEventListener("click", async () => { try { await api("/api/control", { method: "POST", body: JSON.stringify({ action: "break", durationMs: 250 }) }); toast("250 ms break sent"); } catch (error) { toast(error.message, true); } });
     elements.resetBuffers.addEventListener("click", async () => { try { await api("/api/control", { method: "POST", body: JSON.stringify({ action: "reset-buffers" }) }); toast("Serial buffers reset"); } catch (error) { toast(error.message, true); } });
     document.addEventListener("click", (event) => { if (!event.target.closest(".popover")) closePopovers(); });

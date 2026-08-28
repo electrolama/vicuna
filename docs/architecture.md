@@ -4,7 +4,9 @@
 
 Terminal, Monitor, and Hex are separate views over the same bidirectional serial byte stream.
 
-Terminal implements the practical VT100/ECMA-48 subset commonly used by embedded Linux shells. Monitor is intended for chronological firmware logs and can add timestamps without corrupting terminal cursor or screen-erasure sequences. Hex remains binary-safe for arbitrary protocols.
+Terminal uses xterm.js for production-grade VT/ECMA-48 parsing, cursor state, alternate-screen buffers, Unicode cell widths, and viewport reflow. Monitor is intended for chronological firmware logs and can add timestamps without corrupting terminal cursor or screen-erasure sequences. Hex remains binary-safe for arbitrary protocols.
+
+The fit addon resizes the browser-side terminal whenever its container changes. A raw UART has no PTY control channel, so Vicuña cannot deliver `TIOCSWINSZ` or `SIGWINCH` to a program on the remote machine. Vicuña responds to xterm character-size queries, allowing the remote `resize` utility to discover the current geometry, and shows an equivalent `stty rows … cols …` command in the sidebar. Full-screen programs should be started after one of those commands when the browser size has changed.
 
 Serial data travels between the Go process and browser as base64 inside a same-origin server-sent-event stream. This preserves zero bytes and invalid UTF-8. Sends use short same-origin HTTP requests.
 

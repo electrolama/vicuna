@@ -4,7 +4,7 @@ Vicuña is an extensible, browser-based serial monitor and terminal for embedded
 
 ## Highlights
 
-- **Terminal** — interactive VT100/ECMA-48-style operation with ANSI colour, cursor control, alternate-screen support, paste, navigation keys, and scrollback.
+- **Terminal** — xterm.js-powered VT/ECMA-48 emulation with ANSI colour, correct cursor and wide-character handling, alternate-screen support, paste, navigation keys, reflow, and scrollback.
 - **Monitor** — timestamped RX/TX logging with visible control characters, optional ANSI colour, and export.
 - **Hex** — binary-safe 16-byte rows with RX/TX offsets, timestamps, ASCII equivalents, and export.
 - **Serial controls** — port discovery, common and custom baud rates, framing options, break, buffer reset, local echo, line endings, and text or hexadecimal sending.
