@@ -76,6 +76,12 @@ svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width:
 [hidden] { display: none !important; }
 
 .app-shell { display: grid; grid-template-columns: minmax(0, 1fr) 258px; grid-template-rows: 45px minmax(0, 1fr) 58px; height: 100%; min-width: 900px; }
+.backend-unavailable { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: var(--bg); }
+.backend-unavailable-card { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--faint); text-align: center; }
+.backend-unavailable-card strong { margin-top: 5px; color: var(--text); font-size: 15px; font-weight: 650; }
+.backend-unavailable-mark { display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line)); border-radius: 50%; background: var(--danger-soft); }
+.backend-unavailable-mark i { width: 9px; height: 9px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 55%, transparent); animation: backend-pulse 1.6s ease-out infinite; }
+@keyframes backend-pulse { 70%, 100% { box-shadow: 0 0 0 13px transparent; } }
 .brand-mark { display: grid; place-items: center; width: 28px; height: 25px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); }
 .brand-mark b { color: var(--accent); font: 750 13px/1 var(--mono); letter-spacing: -.08em; text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent); }
 

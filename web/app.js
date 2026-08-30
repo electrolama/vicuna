@@ -7,8 +7,10 @@
   const storageKey = "vicuna.settings.v1";
   const maxMonitorLines = 5000;
   const maxHexRows = 5000;
+  const portRefreshIntervalMs = 1000;
 
   const elements = {
+    shell: $(".app-shell"), backendUnavailable: $("#backendUnavailable"),
     port: $("#portSelect"), refresh: $("#refreshPorts"), baud: $("#baudSelect"),
     customBaud: $("#customBaudInput"), customBaudField: $("#customBaudField"),
     connect: $("#connectButton"), connectLabel: $(".connect-label"), stream: $("#streamStatus"),
@@ -30,7 +32,10 @@
   let applyingSettings = false;
   let activeView = settings.view || "terminal";
   let sendMode = settings.sendMode || "text";
+  let backendAvailable = true;
   let connected = false;
+  let refreshingPorts = false;
+  let portsSignature = null;
   let signals = { connected: false, available: false, dtr: false, rts: false, cts: false, dsr: false, ri: false, dcd: false };
   let eventSource = null;
   let monitorEntries = [];
@@ -355,20 +360,31 @@
   }
 
   async function api(path, options = {}) {
-    const response = await fetch(path, {
-      ...options,
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) }
-    });
+    let response;
+    try {
+      response = await fetch(path, {
+        ...options,
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+      });
+    } catch (error) {
+      setBackendAvailable(false);
+      throw error;
+    }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || `${response.status} ${response.statusText}`);
     return payload;
   }
 
-  async function refreshPorts() {
+  async function refreshPorts(reportErrors = true) {
+    if (!backendAvailable || refreshingPorts) return;
+    refreshingPorts = true;
     elements.refresh.disabled = true;
     const selected = elements.port.value || settings.port || "";
     try {
       const { ports } = await api("/api/ports");
+      const signature = JSON.stringify(ports);
+      if (signature === portsSignature) return;
+      portsSignature = signature;
       elements.port.innerHTML = "";
       if (!ports.length) elements.port.add(new Option("No serial ports found", ""));
       for (const port of ports) {
@@ -377,8 +393,8 @@
       }
       if ([...elements.port.options].some((option) => option.value === selected)) elements.port.value = selected;
       elements.connect.disabled = connected ? false : !elements.port.value;
-    } catch (error) { toast(error.message, true); }
-    finally { elements.refresh.disabled = connected; }
+    } catch (error) { if (reportErrors) toast(error.message, true); }
+    finally { refreshingPorts = false; elements.refresh.disabled = !backendAvailable || connected; }
   }
 
   async function loadBuildInformation() {
@@ -409,18 +425,7 @@
   function applyStatus(status) {
     const wasConnected = connected;
     connected = Boolean(status.connected);
-    elements.connect.classList.toggle("connected", connected);
-    elements.connectLabel.textContent = connected ? "Disconnect" : "Connect";
-    elements.send.disabled = !connected;
-    elements.sendInput.disabled = !connected;
-    elements.port.disabled = connected;
-    elements.baud.disabled = connected;
-    elements.customBaud.disabled = connected;
-    elements.refresh.disabled = connected;
-    elements.settingsButton.disabled = connected;
-    elements.hardware.disabled = connected;
-    terminal.setInputEnabled(connected);
-    elements.connect.disabled = connected ? false : !elements.port.value;
+    updateConnectionControls();
     if (connected && status.config) {
       elements.port.value = status.config.port;
       setBaud(status.config.baud);
@@ -430,9 +435,45 @@
     } else if (wasConnected) {
       signals = { connected: false, available: false, dtr: false, rts: false, cts: false, dsr: false, ri: false, dcd: false };
       toast(status.error ? `Serial link closed: ${status.error}` : "Serial port disconnected", Boolean(status.error));
+      refreshPorts(false);
     }
     document.title = connected ? "✅ Vicuña — Connected" : "❌ Vicuña — Disconnected";
     renderHardwarePanel();
+  }
+
+  function updateConnectionControls() {
+    elements.connect.classList.toggle("connected", connected);
+    elements.connectLabel.textContent = connected ? "Disconnect" : "Connect";
+    elements.send.disabled = !backendAvailable || !connected;
+    elements.sendInput.disabled = !backendAvailable || !connected;
+    elements.port.disabled = !backendAvailable || connected;
+    elements.baud.disabled = !backendAvailable || connected;
+    elements.customBaud.disabled = !backendAvailable || connected;
+    elements.refresh.disabled = !backendAvailable || connected;
+    elements.settingsButton.disabled = !backendAvailable || connected;
+    elements.hardware.disabled = !backendAvailable || connected;
+    terminal.setInputEnabled(backendAvailable && connected);
+    elements.connect.disabled = !backendAvailable || (!connected && !elements.port.value);
+  }
+
+  function setBackendAvailable(available) {
+    if (backendAvailable === available) return;
+    backendAvailable = available;
+    elements.shell.inert = !available;
+    elements.backendUnavailable.hidden = available;
+    if (!available) {
+      connected = false;
+      signals = { connected: false, available: false, dtr: false, rts: false, cts: false, dsr: false, ri: false, dcd: false };
+      portsSignature = null;
+      elements.port.innerHTML = "";
+      elements.port.add(new Option("Backend unavailable", ""));
+      closePopovers();
+      document.title = "⚠️ Vicuña — Backend unavailable";
+      renderHardwarePanel();
+    } else {
+      refreshPorts(false);
+    }
+    updateConnectionControls();
   }
 
   function applySignals(value) {
@@ -444,12 +485,20 @@
     if (eventSource) eventSource.close();
     eventSource = new EventSource("/api/events");
     elements.stream.className = "stream-status";
-    eventSource.onopen = () => { elements.stream.className = "stream-status online"; elements.stream.innerHTML = "<i></i> UI link"; };
-    eventSource.onerror = () => { elements.stream.className = "stream-status offline"; elements.stream.innerHTML = "<i></i> Reconnecting"; };
+    eventSource.onopen = () => { elements.stream.className = "stream-status online"; elements.stream.innerHTML = "<i></i> Syncing"; };
+    eventSource.onerror = () => {
+      elements.stream.className = "stream-status offline";
+      elements.stream.innerHTML = "<i></i> Reconnecting";
+      setBackendAvailable(false);
+    };
     eventSource.onmessage = (message) => {
       try {
         const value = JSON.parse(message.data);
-        if (value.type === "status" && value.status) applyStatus(value.status);
+        if (value.type === "status" && value.status) {
+          setBackendAvailable(true);
+          elements.stream.innerHTML = "<i></i> UI link";
+          applyStatus(value.status);
+        }
         if (value.type === "signals" && value.signals) applySignals(value.signals);
         if (value.type === "data" && value.data) receiveData(value.direction, base64Bytes(value.data), new Date(value.time));
       } catch (error) { console.warn("Bad event", error); }
@@ -668,7 +717,7 @@
 
   function bindEvents() {
     terminal.bindInput();
-    elements.refresh.addEventListener("click", refreshPorts);
+    elements.refresh.addEventListener("click", () => refreshPorts());
     elements.connect.addEventListener("click", toggleConnection);
     elements.port.addEventListener("change", () => { elements.connect.disabled = !elements.port.value; saveSettings(); });
     elements.hardware.addEventListener("change", () => { renderHardwarePanel(); saveSettings(); });
@@ -716,6 +765,7 @@
     const portsReady = refreshPorts();
     try { applyStatus(await api("/api/status")); applySignals(await api("/api/signals")); } catch (error) { toast(error.message, true); }
     await portsReady;
+    setInterval(() => refreshPorts(false), portRefreshIntervalMs);
   }
 
   init();

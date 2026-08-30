@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,11 +13,12 @@ import (
 type statusTestPort struct {
 	started chan struct{}
 	release chan struct{}
+	closed  bool
 }
 
 func (p *statusTestPort) Read([]byte) (int, error)           { return 0, io.EOF }
 func (p *statusTestPort) Write(value []byte) (int, error)    { return len(value), nil }
-func (p *statusTestPort) Close() error                       { return nil }
+func (p *statusTestPort) Close() error                       { p.closed = true; return nil }
 func (p *statusTestPort) SetReadTimeout(time.Duration) error { return nil }
 func (p *statusTestPort) SetDTR(bool) error                  { return nil }
 func (p *statusTestPort) SetRTS(bool) error                  { return nil }
@@ -92,5 +95,54 @@ func TestSignalSnapshotDiscardsPollFromDisconnectedPort(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("signal snapshot did not complete")
+	}
+}
+
+func TestMissingPortDisconnectsActiveConnection(t *testing.T) {
+	port := &statusTestPort{}
+	active := &connection{port: port, config: serialConfig{Port: "COM7"}}
+	events := newHub()
+	updates, unsubscribe := events.subscribe()
+	defer unsubscribe()
+	manager := &serialManager{
+		current: active,
+		hub:     events,
+		ports:   func() ([]portInfo, error) { return []portInfo{{Name: "COM8"}}, nil },
+	}
+
+	if manager.checkPortPresence(active) {
+		t.Fatal("presence check should stop after the active port disappears")
+	}
+	if manager.Status().Connected {
+		t.Fatal("manager still reports a connection to a missing port")
+	}
+	if !port.closed {
+		t.Fatal("missing port handle was not closed")
+	}
+
+	statusEvent := <-updates
+	if statusEvent.Status == nil || statusEvent.Status.Connected || !strings.Contains(statusEvent.Status.Error, "COM7") {
+		t.Fatalf("unexpected disconnect event: %+v", statusEvent)
+	}
+	signalsEvent := <-updates
+	if signalsEvent.Signals == nil || signalsEvent.Signals.Connected {
+		t.Fatalf("unexpected signals event: %+v", signalsEvent)
+	}
+}
+
+func TestPortPresenceIgnoresTransientEnumerationFailure(t *testing.T) {
+	port := &statusTestPort{}
+	active := &connection{port: port, config: serialConfig{Port: "COM7"}}
+	manager := &serialManager{
+		current: active,
+		hub:     newHub(),
+		ports:   func() ([]portInfo, error) { return nil, errors.New("registry busy") },
+	}
+
+	if !manager.checkPortPresence(active) {
+		t.Fatal("transient enumeration failure stopped presence checks")
+	}
+	if !manager.Status().Connected || port.closed {
+		t.Fatal("transient enumeration failure disconnected the active port")
 	}
 }

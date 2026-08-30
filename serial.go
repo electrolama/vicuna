@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,6 +72,9 @@ type serialPort interface {
 }
 
 type serialOpener func(string, *serial.Mode) (serialPort, error)
+type portEnumerator func() ([]portInfo, error)
+
+const portPresenceInterval = time.Second
 
 type connection struct {
 	port    serialPort
@@ -88,6 +92,7 @@ type serialManager struct {
 	current *connection
 	hub     *hub
 	open    serialOpener
+	ports   portEnumerator
 }
 
 func newSerialManager(h *hub) *serialManager {
@@ -96,10 +101,15 @@ func newSerialManager(h *hub) *serialManager {
 		open: func(name string, mode *serial.Mode) (serialPort, error) {
 			return serial.Open(name, mode)
 		},
+		ports: enumerateSerialPorts,
 	}
 }
 
 func (m *serialManager) Ports() ([]portInfo, error) {
+	return m.ports()
+}
+
+func enumerateSerialPorts() ([]portInfo, error) {
 	details, err := getDetailedPortsList()
 	if err != nil {
 		names, fallbackErr := serial.GetPortsList()
@@ -164,6 +174,7 @@ func (m *serialManager) Connect(config serialConfig) error {
 	m.hub.publish(event{Type: "status", Status: &status})
 	go m.readLoop(next)
 	go m.signalLoop(next)
+	go m.presenceLoop(next)
 	return nil
 }
 
@@ -301,21 +312,62 @@ func (m *serialManager) readLoop(active *connection) {
 			m.hub.publish(event{Type: "data", Direction: "rx", Data: chunk})
 		}
 		if err != nil {
-			m.mu.Lock()
-			if m.current == active {
-				m.current = nil
-				m.mu.Unlock()
-				active.close()
-				status := serialStatus{Connected: false, Error: err.Error()}
-				m.hub.publish(event{Type: "status", Status: &status, Message: err.Error()})
-				signals := modemSignals{}
-				m.hub.publish(event{Type: "signals", Signals: &signals})
-			} else {
-				m.mu.Unlock()
-			}
+			m.failConnection(active, err)
 			return
 		}
 	}
+}
+
+func (m *serialManager) presenceLoop(active *connection) {
+	ticker := time.NewTicker(portPresenceInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		if !m.checkPortPresence(active) {
+			return
+		}
+	}
+}
+
+func (m *serialManager) checkPortPresence(active *connection) bool {
+	if !m.isCurrent(active) {
+		return false
+	}
+	ports, err := m.Ports()
+	if err != nil {
+		// Enumeration can fail transiently (for example while the OS is
+		// updating its device registry). A failed scan is not proof that the
+		// connected device disappeared.
+		return m.isCurrent(active)
+	}
+	for _, port := range ports {
+		if samePortName(port.Name, active.config.Port) {
+			return m.isCurrent(active)
+		}
+	}
+	m.failConnection(active, fmt.Errorf("serial port %s is no longer available", active.config.Port))
+	return false
+}
+
+func (m *serialManager) isCurrent(active *connection) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.current == active
+}
+
+func (m *serialManager) failConnection(active *connection, err error) {
+	m.mu.Lock()
+	if m.current != active {
+		m.mu.Unlock()
+		return
+	}
+	m.current = nil
+	m.mu.Unlock()
+
+	active.close()
+	status := serialStatus{Connected: false, Error: err.Error()}
+	m.hub.publish(event{Type: "status", Status: &status, Message: err.Error()})
+	signals := modemSignals{}
+	m.hub.publish(event{Type: "signals", Signals: &signals})
 }
 
 func (m *serialManager) signalLoop(active *connection) {
@@ -432,6 +484,13 @@ func naturalPortLess(left, right string) bool {
 		return leftNumber < rightNumber
 	}
 	return strings.ToLower(left) < strings.ToLower(right)
+}
+
+func samePortName(left, right string) bool {
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(left, right)
+	}
+	return left == right
 }
 
 func numericSuffix(value string) (string, int, bool) {

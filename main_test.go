@@ -37,6 +37,9 @@ func TestEmbeddedTerminalAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := string(index)
+	if !strings.Contains(page, `id="backendUnavailable"`) {
+		t.Error("backend-unavailable state is missing from the page")
+	}
 	positions := []int{
 		strings.Index(page, `src="xterm.js"`),
 		strings.Index(page, `src="xterm-addon-fit.js"`),
@@ -57,5 +60,10 @@ func TestEmbeddedTerminalAssets(t *testing.T) {
 	}
 	if strings.Contains(string(app), "— preset") {
 		t.Error("port refresh must not re-add a missing serial port as a preset")
+	}
+	for _, contract := range []string{"setInterval(() => refreshPorts(false)", "refreshPorts(false);", "setBackendAvailable(false)", "setBackendAvailable(true)"} {
+		if !strings.Contains(string(app), contract) {
+			t.Errorf("embedded frontend is missing %q", contract)
+		}
 	}
 }

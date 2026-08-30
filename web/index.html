@@ -177,6 +177,14 @@
 
     <div id="toastRegion" class="toast-region" aria-live="polite"></div>
   </div>
+
+  <div id="backendUnavailable" class="backend-unavailable" role="status" aria-live="assertive" hidden>
+    <div class="backend-unavailable-card">
+      <span class="backend-unavailable-mark" aria-hidden="true"><i></i></span>
+      <strong>Vicuña backend unavailable</strong>
+      <span>The server connection was lost. Waiting for it to return…</span>
+    </div>
+  </div>
   <script src="xterm.js" defer></script>
   <script src="xterm-addon-fit.js" defer></script>
   <script src="app.js" defer></script>
