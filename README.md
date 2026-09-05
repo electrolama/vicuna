@@ -35,7 +35,7 @@ On **Windows**, double-click the release executable. Vicuña appears in the syst
 
 `Generic RS232` is the built-in baseline and default. It exposes writable DTR and RTS lines as HIGH/LOW buttons and displays CTS, DSR, RI, and DCD as read-only indicators.
 
-Hardware modules can give those lines device-specific names and behaviour without changing the serial transport. The included `pt1` adapter is a deliberately small worked example showing how to build such a module; Vicuña does not depend on pt1 hardware.
+Hardware modules can give those lines device-specific names and behaviour without changing the serial transport. The included [pt1](https://lab.electrolama.com/project/pt1) module adds USB power control and fault reporting, and serves as an example for building support for other hardware.
 
 The serial port, baud rate, framing, and connection action live together in the right sidebar above the hardware-profile controls.
 

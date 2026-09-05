@@ -73,7 +73,7 @@ The browser intentionally ignores service modules without a matching browser ada
 
 ## Worked example: pt1
 
-The included `pt1` adapter demonstrates the smallest useful device-specific module. It does not add a new transport or special protocol; it renames two modem-control lines already handled by Vicuña:
+The included [pt1](https://lab.electrolama.com/project/pt1) module provides USB power control and fault reporting using two modem-control lines already handled by Vicuña:
 
 | Device control | Modem signal | Behaviour |
 | --- | --- | --- |
