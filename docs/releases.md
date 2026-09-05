@@ -15,6 +15,8 @@ Vicuña releases are produced by GitHub Actions. Compiled binaries are never com
 - the example JSON configuration; and
 - a versioned smoke build.
 
+A separate Windows job runs `go vet`, the test suite (including native tray/instance tests), and a GUI-subsystem build with redirected `-version` and `-help` smoke checks. The live tray integration test also runs when an Explorer desktop is available; it skips on headless runners.
+
 A change should not be released until CI succeeds on the intended commit. Both CI and tag builds call `.github/workflows/verify.yml`; release build and publish jobs depend on that shared verification workflow, so pushing a tag cannot bypass testing even if the separate CI run has not completed.
 
 ## Versioning
@@ -58,6 +60,8 @@ The workflow builds:
 | `SHA256SUMS.txt` | SHA-256 hashes for every binary and licence file |
 
 The Go linker embeds the version derived from the tag. Builds use `CGO_ENABLED=0`, `-trimpath`, and stripped symbols for portable standalone executables.
+
+Windows releases additionally use `-H windowsgui` so normal launches show a system tray icon without a console window. The same executable provides `-console` for terminal use. Tray integration uses native Windows APIs and adds no external runtime requirement.
 
 ## Manual release build
 

@@ -73,3 +73,38 @@ jobs:
               -o "$RUNNER_TEMP/vicuna-darwin-$arch" \
               .
           done
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify Windows code
+        run: |
+          go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go test -count=1 ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Smoke-test Windows GUI release
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          $binary = Join-Path $env:RUNNER_TEMP 'vicuna.exe'
+          go build -trimpath -buildvcs=false '-ldflags=-s -w -H windowsgui -X main.version=ci' -o $binary .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $output = & $binary -version | Out-String
+          if ($LASTEXITCODE -ne 0 -or $output.Trim() -ne 'vicuna ci') {
+            throw "Windows GUI version output failed: $output"
+          }
+          $help = & $binary -help | Out-String
+          if ($LASTEXITCODE -ne 0 -or $help -notmatch '-console') {
+            throw "Windows GUI help output failed: $help"
+          }

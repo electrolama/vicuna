@@ -19,10 +19,38 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -o dist/vicuna-linux-ar
 CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -trimpath -o dist/vicuna-linux-armv7 .
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -o dist/vicuna-darwin-amd64 .
 CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -o dist/vicuna-darwin-arm64 .
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o dist/vicuna-windows-amd64.exe .
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-H windowsgui" -o dist/vicuna-windows-amd64.exe .
 ```
 
 Compiled files and `dist/` are ignored by Git. Normal releases should use the automated process described in [releases.md](releases.md).
+
+## Windows
+
+Double-click the Windows release executable. It starts the local server, adds a blue terminal icon to the system tray, and opens the interface in your default browser. Windows may place the icon in the tray's hidden-icons menu; you can drag it onto the taskbar's tray area.
+
+Click the icon to open the interface. Its right-click menu provides **Open Vicuña**, **Open logs**, and **Quit**. Closing a browser tab leaves the server and serial connection running. **Quit** closes browser event streams, finishes active requests, and releases the serial port. The icon is restored if Windows Explorer restarts.
+
+Launching Vicuna again with the same `-listen` value activates the existing tray instance for the current Windows user/session. The first instance's configuration stays in effect; quit it before changing configuration. Different listen addresses can run independently. A port occupied by another application produces a startup error dialog.
+
+Tray-mode diagnostics are written to `%LOCALAPPDATA%\Vicuna\logs\vicuna.log`. Non-default listen addresses use a filename with an address-derived suffix. **Open logs** opens the current file. At startup, a log of 5 MiB or larger is rotated to `.log.1`, replacing the previous backup. Logs contain application diagnostics, not serial traffic; export serial data from the browser interface.
+
+For troubleshooting or a session without a desktop, use:
+
+```powershell
+.\vicuna.exe -console
+.\vicuna.exe -console -listen 127.0.0.1:9090 -config C:\path\vicuna.json
+```
+
+Console mode attaches to the invoking terminal, or creates a console if necessary. It writes diagnostics to stderr, does not open the browser or tray, and stops with Ctrl+C. It starts its own server, so quit a tray instance using the same port first. `-help` and `-version` also work with terminal output and redirection; when launched without an output destination, they display a dialog. In PowerShell, pipe GUI-executable output to `Out-String` when you need to wait for it, for example `.\vicuna.exe -version | Out-String`.
+
+Build the tray executable locally in PowerShell with:
+
+```powershell
+$env:CGO_ENABLED = '0'
+go build -trimpath -ldflags="-s -w -H windowsgui" -o vicuna.exe .
+```
+
+Linux and macOS continue to run in the terminal as before.
 
 ## macOS
 

@@ -20,12 +20,15 @@ go build -trimpath -o vicuna .
 ./vicuna
 ```
 
-Open the address printed in the log. Vicuña listens on `127.0.0.1:8080` by default and controls serial ports attached to the host running the executable.
+On Linux and macOS, open the address printed in the log. Vicuña listens on `127.0.0.1:8080` by default and controls serial ports attached to the host running the executable.
+
+On **Windows**, double-click the release executable. Vicuña appears in the system tray and opens your browser. Click the tray icon to reopen the interface, or right-click for **Open Vicuña**, **Open logs**, and **Quit**. Closing the browser leaves Vicuña running; **Quit** stops the server and releases the serial port. Launching the executable again with the same listen address opens the running instance.
 
 ```text
 -config <path>   Load a specific JSON configuration file
 -listen <addr>   Set the HTTP listen address
 -version         Print the build version and exit
+-console         Windows only: run in a console without the tray or browser launch
 ```
 
 ## Hardware modules
@@ -80,6 +83,8 @@ go test ./...
 go vet ./...
 go build -trimpath -o vicuna .
 ```
+
+For a Windows build without a console window, use `go build -trimpath -ldflags="-H windowsgui" -o vicuna.exe .`. The resulting executable still supports `-console`, `-help`, and `-version`. See [Windows deployment](docs/deployment.md#windows) for logs and troubleshooting.
 
 Compiled files are intentionally excluded from source control. GitHub Actions runs the full verification suite on pushes and pull requests, while version tags create checksummed release binaries. See the [release process](docs/releases.md) for details.
 

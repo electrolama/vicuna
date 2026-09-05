@@ -105,10 +105,14 @@ jobs:
           OUTPUT: ${{ matrix.output }}
         run: |
           mkdir -p dist
+          ldflags="-s -w -X main.version=$VERSION"
+          if [[ "$GOOS" == "windows" ]]; then
+            ldflags="$ldflags -H windowsgui"
+          fi
           CGO_ENABLED=0 go build \
             -trimpath \
             -buildvcs=false \
-            -ldflags="-s -w -X main.version=$VERSION" \
+            -ldflags="$ldflags" \
             -o "dist/vicuna-$VERSION-$OUTPUT" \
             .
 

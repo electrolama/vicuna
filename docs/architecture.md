@@ -18,6 +18,14 @@ While connected, a separate presence check compares the active port with the ope
 
 If the browser loses its event stream or an API request cannot reach the backend, it replaces the application with a backend-unavailable screen and disables the stale controls. The event stream reconnects automatically; the application returns only after receiving a fresh connection status and then refreshes the port list.
 
+## Application lifecycle
+
+The shared application owns the HTTP listener and serial manager. Shutdown cancels HTTP connections (including event streams), waits for active handlers, and then disconnects the serial device. New handlers are rejected once shutdown begins, preventing an in-flight connection request from reopening a device after Quit.
+
+On Linux and macOS, process signals control this lifecycle. On Windows, the default launcher runs a native tray message loop on a locked OS thread; `-console` selects the signal-driven launcher. The tray provides browser/log access and Quit, handles Windows session shutdown, and recreates the notification icon after Explorer restarts. The HTTP listener is bound before the browser is opened, including when an ephemeral port is requested.
+
+Windows tray instances use a named mutex and auto-reset event scoped to the user, session, and requested listen address. A repeat launch signals the event and exits, and the owning instance opens its actual URL. This activation mechanism is separate from the web API and works while the first instance is still starting. Tray logging uses the user's local application-data directory.
+
 ## Embedded frontend
 
 The HTML, CSS, JavaScript, and third-party notices under `web/` are embedded into the Go executable. A deployment therefore needs only the binary and, optionally, a JSON configuration file.
